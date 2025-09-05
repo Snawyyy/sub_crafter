@@ -86,15 +86,25 @@ youtube-captionizer/
 - mpv
 - yt-dlp
 
-### Backend
+### Backend (Local)
 
 1. Clone the repository.
 2. Navigate to the `backend/` directory.
-3. Create a virtual environment: `python -m venv venv && source venv/bin/activate` (Linux/macOS) or `python -m venv venv && venv\Scripts\activate` (Windows).
+3. Create a virtual environment: `python -m venv .venv && source .venv/bin/activate` (Linux/macOS) or `python -m venv .venv && .venv\Scripts\activate` (Windows).
 4. Install dependencies: `pip install -r requirements.txt`.
 5. Create a `.env` file based on `.env.example` and add your `GEMINI_API_KEY`.
 
-### Running the Backend
+For a full local setup guide, see [LOCAL_SETUP.md](LOCAL_SETUP.md).
+
+### Running the Backend (Local)
+
+You can start all backend services (Redis, FastAPI, Celery) at once using the provided script:
+
+```bash
+./you_cap local
+```
+
+Alternatively, you can start them manually in separate terminals:
 
 ```bash
 # Start the FastAPI server
@@ -102,6 +112,7 @@ uvicorn app.main:app --reload --port 8000
 
 # In a new terminal, start the Celery worker
 celery -A worker worker --loglevel=info
+```
 ```
 
 ### Firefox Extension

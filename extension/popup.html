@@ -24,12 +24,12 @@
       width: 100%;
       padding: 0.25em;
     }
-    #hardcode-selector {
+    .checkbox-selector {
       margin-bottom: 1em;
       display: flex;
       align-items: center;
     }
-    #hardcode-selector input {
+    .checkbox-selector input {
       margin-right: 0.5em;
     }
     button {
@@ -65,9 +65,14 @@
     <div class="optional-label">Leave blank for auto-detection</div>
   </div>
 
-  <div id="hardcode-selector">
+  <div class="checkbox-selector">
     <input type="checkbox" id="hardcode" name="hardcode" checked>
     <label for="hardcode">Hardcode subtitles</label>
+  </div>
+
+  <div class="checkbox-selector">
+    <input type="checkbox" id="processPlaylist" name="processPlaylist">
+    <label for="processPlaylist">Process entire playlist</label>
   </div>
 
   <button id="start-button">Captionize Video</button>

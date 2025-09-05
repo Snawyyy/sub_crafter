@@ -6,5 +6,11 @@ SCRIPT_DIR="$( cd "$( dirname "$(readlink -f "${BASH_SOURCE[0]}")" )" &> /dev/nu
 echo "Changing to directory: $SCRIPT_DIR"
 cd "$SCRIPT_DIR"
 
-echo "Starting the backend services with docker compose..."
-docker compose up --build
+# Check if the user wants to run with Docker
+if [[ "$1" == "docker" ]]; then
+    echo "Starting the backend services with docker compose..."
+    exec "$SCRIPT_DIR/you_cap_docker"
+else
+    echo "Starting the backend services locally..."
+    exec "$SCRIPT_DIR/you_cap_local"
+fi

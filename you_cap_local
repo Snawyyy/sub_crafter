@@ -1,0 +1,57 @@
+#!/bin/bash
+
+# Get the absolute path of the script itself.
+SCRIPT_DIR="$( cd "$( dirname "$(readlink -f "${BASH_SOURCE[0]}")" )" &> /dev/null && pwd )"
+
+echo "Changing to directory: $SCRIPT_DIR"
+cd "$SCRIPT_DIR"
+
+# Check if .env file exists in backend directory
+if [ ! -f "backend/.env" ]; then
+    echo "Error: backend/.env file not found. Please create it based on backend/.env.example and add your GEMINI_API_KEY."
+    exit 1
+fi
+
+# Function to check if a command exists
+command_exists() {
+    command -v "$1" >/dev/null 2>&1
+}
+
+# Check if required commands are available
+if ! command_exists redis-server; then
+    echo "Error: redis-server not found. Please install Redis."
+    echo "For Ubuntu/Debian: sudo apt update && sudo apt install redis"
+    echo "For Fedora/RHEL/CentOS: sudo dnf install redis"
+    echo "For Arch Linux: sudo pacman -S redis"
+    exit 1
+fi
+
+if ! command_exists ffmpeg; then
+    echo "Error: ffmpeg not found. Please install FFmpeg."
+    echo "For Ubuntu/Debian: sudo apt update && sudo apt install ffmpeg"
+    echo "For Fedora/RHEL/CentOS: sudo dnf install ffmpeg"
+    echo "For Arch Linux: sudo pacman -S ffmpeg"
+    exit 1
+fi
+
+# Start Redis server in the background
+echo "Starting Redis server..."
+redis-server --dir ./local_redis_data --dbfilename dump.rdb &
+
+# Wait a moment for Redis to start
+sleep 2
+
+# Start the FastAPI server in the background
+echo "Starting FastAPI server..."
+cd backend
+source .venv/bin/activate
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload &
+
+# Wait a moment for FastAPI to start
+sleep 5
+
+# Start the Celery worker
+echo "Starting Celery worker..."
+cd "$SCRIPT_DIR/backend"
+source .venv/bin/activate
+celery -A worker.celery_app worker --loglevel=info

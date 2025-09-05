@@ -4,13 +4,14 @@ const startButton = document.getElementById('start-button');
 const targetLangSelect = document.getElementById('targetLang');
 const sourceLangInput = document.getElementById('sourceLang');
 const hardcodeCheckbox = document.getElementById('hardcode');
+const processPlaylistCheckbox = document.getElementById('processPlaylist');
 
 let ws;
 
 // Load saved language and set the dropdown
 document.addEventListener('DOMContentLoaded', async () => {
   try {
-    const { targetLang, sourceLang, hardcode } = await browser.storage.local.get(['targetLang', 'sourceLang', 'hardcode']);
+    const { targetLang, sourceLang, hardcode, processPlaylist } = await browser.storage.local.get(['targetLang', 'sourceLang', 'hardcode', 'processPlaylist']);
     if (targetLang) {
       targetLangSelect.value = targetLang;
     }
@@ -20,6 +21,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Checkbox is checked by default, only uncheck if explicitly saved as false
     if (hardcode === false) {
       hardcodeCheckbox.checked = false;
+    }
+    // Checkbox is unchecked by default, only check if explicitly saved as true
+    if (processPlaylist === true) {
+      processPlaylistCheckbox.checked = true;
     }
   } catch (e) {
     console.error("Error loading settings:", e);
@@ -53,18 +58,28 @@ hardcodeCheckbox.addEventListener('change', async (e) => {
   }
 });
 
+// Save processPlaylist preference when it changes
+processPlaylistCheckbox.addEventListener('change', async (e) => {
+  try {
+    await browser.storage.local.set({ processPlaylist: e.target.checked });
+  } catch (e) {
+    console.error("Error saving settings:", e);
+  }
+});
+
 startButton.addEventListener('click', async () => {
   try {
     const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
 
-    if (!tab.url || !tab.url.includes("youtube.com/watch")) {
-      statusDiv.textContent = "Not a YouTube video page.";
+    if (!tab.url || (!tab.url.includes("youtube.com/watch") && !tab.url.includes("youtube.com/playlist"))) {
+      statusDiv.textContent = "Not a YouTube video or playlist page.";
       return;
     }
 
     const targetLang = targetLangSelect.value || "he";
     const sourceLang = sourceLangInput.value || null; // null will trigger auto-detection
     const hardcode = hardcodeCheckbox.checked;
+    const processPlaylist = processPlaylistCheckbox.checked;
 
     statusDiv.textContent = 'Sending to backend...';
     
@@ -72,7 +87,8 @@ startButton.addEventListener('click', async () => {
     const payload = { 
       url: tab.url,
       target_lang: targetLang,
-      hardcode: hardcode
+      hardcode: hardcode,
+      process_playlist: processPlaylist
     };
     
     // Only add source_lang if it's specified

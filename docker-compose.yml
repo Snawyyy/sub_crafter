@@ -32,15 +32,15 @@ services:
       - ./backend/.env
     environment:
       - REDIS_URL=redis://redis:6379/0
+    # deploy: # Commented out GPU requirements for local setup
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
     depends_on:
       - redis
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
     command: celery -A worker.celery_app worker --loglevel=info
 
 volumes:
