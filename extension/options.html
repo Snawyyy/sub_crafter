@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Captionizer Options</title>
+  <style>
+    body { font-family: sans-serif; padding: 1em; }
+    label { display: block; margin-bottom: 0.5em; }
+    input, select { width: 100px; }
+    button { margin-top: 1em; }
+    .optional-label {
+      font-size: 0.8em;
+      color: #666;
+      margin-top: 0.25em;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <h1>Captionizer Options</h1>
+  <form id="options-form">
+    <label for="targetLang">Target Language:</label>
+    <select id="targetLang" name="targetLang">
+      <option value="he">Hebrew</option>
+      <option value="en">English</option>
+      <option value="es">Spanish</option>
+      <option value="ja">Japanese</option>
+    </select>
+    
+    <label for="sourceLang">Video Language (optional):</label>
+    <input type="text" id="sourceLang" name="sourceLang" placeholder="e.g. en, es, ja">
+    <div class="optional-label">Leave blank for auto-detection</div>
+    
+    <button type="submit">Save</button>
+  </form>
+  <div id="status" style="margin-top: 1em;"></div>
+  <script src="options.js"></script>
+</body>
+</html>

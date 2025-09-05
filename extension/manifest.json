@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "YouTube Captionizer",
+  "version": "1.0",
+  "description": "Send YouTube videos for transcription and translation.",
+  "permissions": ["activeTab", "storage", "notifications", "tabs"],
+  "host_permissions": ["http://localhost:8000/*"],
+  "action": {
+    "default_title": "Captionize Video",
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": false
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "addon@example.com",
+      "strict_min_version": "42.0"
+    }
+  }
+}

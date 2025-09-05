@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# Get the absolute path of the script itself.
+SCRIPT_DIR="$( cd "$( dirname "$(readlink -f "${BASH_SOURCE[0]}")" )" &> /dev/null && pwd )"
+
+echo "Changing to directory: $SCRIPT_DIR"
+cd "$SCRIPT_DIR"
+
+echo "Starting the backend services with docker compose..."
+docker compose up --build

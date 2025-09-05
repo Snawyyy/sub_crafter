@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>YouTube Captionizer</title>
+  <style>
+    body { 
+      font-family: sans-serif; 
+      padding: 1em; 
+      width: 250px;
+    }
+    #status { 
+      margin-bottom: 1em; 
+      font-weight: bold;
+    }
+    .lang-selector {
+      margin-bottom: 1em;
+    }
+    label {
+      display: block;
+      margin-bottom: 0.25em;
+    }
+    select, input {
+      width: 100%;
+      padding: 0.25em;
+    }
+    #hardcode-selector {
+      margin-bottom: 1em;
+      display: flex;
+      align-items: center;
+    }
+    #hardcode-selector input {
+      margin-right: 0.5em;
+    }
+    button {
+      width: 100%;
+      padding: 0.5em;
+      font-size: 1em;
+    }
+    .optional-label {
+      font-size: 0.8em;
+      color: #666;
+      margin-top: 0.25em;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <h1>YouTube Captionizer</h1>
+  <div id="status">Ready</div>
+
+  <div class="lang-selector">
+    <label for="targetLang">Translate to:</label>
+    <select id="targetLang">
+      <option value="he">Hebrew</option>
+      <option value="en">English</option>
+      <option value="es">Spanish</option>
+      <option value="ja">Japanese</option>
+    </select>
+  </div>
+  
+  <div class="lang-selector">
+    <label for="sourceLang">Video Language (optional):</label>
+    <input type="text" id="sourceLang" placeholder="e.g. en, es, ja">
+    <div class="optional-label">Leave blank for auto-detection</div>
+  </div>
+
+  <div id="hardcode-selector">
+    <input type="checkbox" id="hardcode" name="hardcode" checked>
+    <label for="hardcode">Hardcode subtitles</label>
+  </div>
+
+  <button id="start-button">Captionize Video</button>
+  <script src="popup.js"></script>
+</body>
+</html>

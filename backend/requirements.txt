@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+celery
+redis
+yt-dlp
+openai-whisper
+google-generativeai
+python-dotenv
+websockets
