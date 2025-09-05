@@ -1,10 +1,21 @@
-# YouTube Captionizer – Project Blueprint
+# YouTube Captionizer
 
-> **Goal:** Automatically download any YouTube video shared from Firefox, transcribe it with Whisper, translate captions with Gemini, burn or export captions, and play the result in **mpv** (or deliver an .srt / .vtt file)… all from one streamlined workflow.
+Automatically download any YouTube video shared from Firefox, transcribe it with Whisper, translate captions with Qwen, burn or export captions, and play the result in **mpv** (or deliver an .srt / .vtt file)… all from one streamlined workflow.
 
 ---
 
-## 1. High‑Level Architecture
+## Features
+
+- **Browser Integration:** A Firefox extension to capture the active YouTube tab URL.
+- **Fast Processing:** Backend API (FastAPI) and worker (Celery) handle the workflow.
+- **Transcription:** Uses Whisper for accurate speech-to-text.
+- **Translation:** Leverages Qwen (via GEMINI_API_KEY) for translating captions.
+- **Flexible Output:** Burn subtitles directly onto the video or export them as .srt/.vtt files.
+- **Playback:** Seamlessly plays the final video in mpv or allows file download.
+
+---
+
+## Architecture
 
 ```text
 Firefox Extension  ──▶  FastAPI Backend  ──▶  Processing Pipeline  ──▶  Assets  ──▶  mpv / download
@@ -13,29 +24,29 @@ Firefox Extension  ──▶  FastAPI Backend  ──▶  Processing Pipeline  �
 
 | Layer       | Tech                                             | Key Responsibilities                                                                                          |
 | ----------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
-| **Browser** | Web‑extension (Manifest v3) + vanilla JS (or TS) | Detect active tab, extract canonical YouTube URL, POST `/enqueue`                                             |
-| **API**     | Python 3.11 + FastAPI                            | Accept job, return job‑id / status, serve files, WebSocket progress push                                      |
-| **Worker**  | Celery + Redis                                   | Heavy tasks: youtube‑dl / yt‑dlp, Whisper transcription, Gemini translate, subtitle muxing / burning (ffmpeg) |
-| **Storage** | local `media/` tree or S3 compatible             | Raw video, `.srt` (Whisper), translated `.srt`, final `.mp4`                                                  |
-| **Player**  | mpv (JSON IPC)                                   | Auto‑load generated subtitles or rendered video                                                               |
+| **Browser** | Web-extension (Manifest v3) + JavaScript         | Detect active tab, extract canonical YouTube URL, POST `/enqueue`                                             |
+| **API**     | Python 3.11 + FastAPI                            | Accept job, return job-id / status, serve files, WebSocket progress push                                      |
+| **Worker**  | Celery + Redis                                   | Heavy tasks: youtube-dl / yt-dlp, Whisper transcription, Qwen translation, subtitle muxing / burning (ffmpeg) |
+| **Storage** | Local `media/` tree                              | Raw video, `.srt` (Whisper), translated `.srt`, final `.mp4`                                                  |
+| **Player**  | mpv                                              | Auto-load generated subtitles or rendered video                                                               |
 
 ---
 
-## 2. Data Flow – Step by Step
+## Workflow
 
-1. **Capture URL** – The add‑on calls `POST /enqueue` with `{url, target_lang}`.
-2. **Job Ticket** – Backend creates UUID job folder in `media/jobs/<id>/` & pushes Celery task.
-3. **Download** – Worker runs `yt-dlp --write-auto-subs --format best ...` → `input.mp4`.
-4. **Whisper** – `whisper input.mp4 --model medium --language auto --output_format srt` → `source.srt`.
-5. **Translate** – Stream `source.srt` chunks to Gemini 1.5 Flash `translate()` prompt → `translated.srt`.
-6. **Mux/Burn** –
-   - **Soft‑subs:** `ffmpeg -i input.mp4 -i translated.srt -c copy -c:s mov_text output.mp4`
-   - **Hard‑subs:** `ffmpeg -i input.mp4 -vf subtitles=translated.srt output_burned.mp4`
-7. **Serve / Play** – Backend exposes `/download/<id>` & `/stream/<id>.mp4`. Extension or local helper launches `mpv --sub-file=translated.srt input.mp4` or opens burned video.
+1. **Capture URL:** The Firefox add-on sends a POST request to `/enqueue` with the YouTube URL and target language.
+2. **Job Creation:** The backend creates a unique job folder in `media/jobs/<id>/` and queues a Celery task.
+3. **Download:** The worker downloads the video using `yt-dlp`.
+4. **Transcription:** Whisper transcribes the audio to `source.srt`.
+5. **Translation:** The `source.srt` file is translated using Qwen into the target language, producing `translated.srt`.
+6. **Mux/Burn:**
+   - **Soft-subtitles:** Mux the translated subtitles into the video container.
+   - **Hard-subtitles:** Burn the subtitles directly onto the video frames using ffmpeg.
+7. **Serve/Play:** The backend serves the final video file or subtitles. The extension or a local helper launches mpv to play the result.
 
 ---
 
-## 3. Repository Structure
+## Project Structure
 
 ```text
 youtube-captionizer/
@@ -43,16 +54,18 @@ youtube-captionizer/
 │  ├─ manifest.json
 │  ├─ background.js
 │  ├─ options.html / options.js
+│  ├─ popup.html / popup.js
 │  └─ icons/
 ├─ backend/
 │  ├─ app/
 │  │  ├─ main.py          # FastAPI routes / WebSockets
 │  │  ├─ tasks.py         # Celery tasks
 │  │  ├─ utils/
-│  │  │  ├─ downloader.py # yt‑dl wrapper
-│  │  │  ├─ whisper.py    # OpenAI/whisper‑cpp wrapper
-│  │  │  ├─ translate.py  # Gemini client
+│  │  │  ├─ downloader.py # yt-dlp wrapper
+│  │  │  ├─ whisper.py    # Whisper wrapper
+│  │  │  ├─ translate.py  # Qwen client
 │  │  │  └─ ffmpeg.py     # Subtitle mux helpers
+│  ├─ media/              # Storage for job assets
 │  ├─ worker.py           # Celery entrypoint
 │  ├─ requirements.txt
 │  └─ .env.example
@@ -62,114 +75,78 @@ youtube-captionizer/
 
 ---
 
-## 4. Key Implementation Notes
+## Setup & Installation
 
-### 4.1 Firefox Extension
+### Prerequisites
 
-- **Manifest v3**, permissions: `tabs`, `<all_urls>`, storage.
-- `background.js`:
-  ```js
-  browser.action.onClicked.addListener(async (tab) => {
-    const url = tab.url;
-    const targetLang = await browser.storage.local.get("lang");
-    await fetch("http://localhost:8000/enqueue", {
-      method: "POST",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({ url, target_lang: targetLang || "he" })
-    });
-    browser.notifications.create({
-      "type": "basic",
-      "title": "Captionizer",
-      "message": "Video sent for processing!"
-    });
-  });
-  ```
+- Python 3.11+
+- Node.js & npm (for the extension)
+- Redis server
+- ffmpeg
+- mpv
+- yt-dlp
 
-### 4.2 Backend FastAPI
+### Backend
 
-```python
-@app.post("/enqueue", response_model=JobOut)
-async def enqueue(req: JobIn):
-    job_id = uuid4().hex
-    celery_app.send_task("tasks.process_video", args=[req.url, req.target_lang, job_id])
-    return {"job_id": job_id, "status": "queued"}
+1. Clone the repository.
+2. Navigate to the `backend/` directory.
+3. Create a virtual environment: `python -m venv venv && source venv/bin/activate` (Linux/macOS) or `python -m venv venv && venv\Scripts\activate` (Windows).
+4. Install dependencies: `pip install -r requirements.txt`.
+5. Create a `.env` file based on `.env.example` and add your `GEMINI_API_KEY`.
+
+### Running the Backend
+
+```bash
+# Start the FastAPI server
+uvicorn app.main:app --reload --port 8000
+
+# In a new terminal, start the Celery worker
+celery -A worker worker --loglevel=info
 ```
 
-- Use Pydantic models.
-- WebSocket `/ws/{job_id}` streams state updates: download → transcribe → translate → mux.
+### Firefox Extension
 
-### 4.3 Celery Task (pseudo)
-
-```python
-@celery.task
-def process_video(url, lang, job_id):
-    paths = download(url, job_id)
-    src_srt = whisper_transcribe(paths.video)
-    tgt_srt = translate_srt(src_srt, lang)
-    final_mp4 = mux_subs(paths.video, tgt_srt)
-    notify(job_id, "done", final_mp4)
-```
-
-### 4.4 Whisper Choices
-
-- **openai‑whisper** (CPU/GPU) or **whisper‑cpp** for pure C++.
-- Pass `--language` if known to skip autodetect.
-
-### 4.5 Gemini Translation
-
-- Use Gemini Pro or Flash; keep prompts small (<8k tokens).
-- Chunk SRT by time‑codes to avoid context overflow. Example prompt:
-  ```text
-  Translate the following SRT subtitles into Hebrew, retain timecodes:
-  1
-  00:00:00,000 --> 00:00:03,000
-  Hello world!
-  ```
-
-### 4.6 Deployment
-
-- **Docker Compose** spins up FastAPI (uvicorn), Redis, Celery worker.
-- GPU? Add `--gpus all` + base image `nvidia/cuda:12.4.1-runtime`.
-
-### 4.7 mpv Integration
-
-- Simple option: open default video player; advanced: control mpv JSON IPC on socket `~/.mpv/socket` for overlay progress.
+1. Navigate to the `extension/` directory.
+2. Load the extension in Firefox:
+   - Open `about:debugging`.
+   - Click "This Firefox".
+   - Click "Load Temporary Add-on".
+   - Select the `manifest.json` file from the `extension/` directory.
 
 ---
 
-## 5. Environment Variables (`.env`)
+## Configuration
 
-```
-GEMINI_API_KEY=...
+### Environment Variables (`.env`)
+
+```env
+GEMINI_API_KEY=your_gemini_api_key_here
 WHISPER_MODEL=medium
 ```
 
 ---
 
-## 6. Quick‑Start (Dev)
+## Development
 
-```bash
-# clone repo
-pip install -r backend/requirements.txt
-uvicorn app.main:app --reload
-celery -A app.worker worker --loglevel=info
-# build extension → about:debugging → Load Temporary Add‑on
-```
+- **API Documentation:** FastAPI provides interactive API docs at `http://localhost:8000/docs`.
+- **WebSocket Updates:** Use WebSockets at `ws://localhost:8000/ws/{job_id}` for real-time job status updates.
 
 ---
 
-## 7. Stretch Goals
+## Deployment
 
-- GUI progress overlay in extension popup.
-- Batch playlist support.
-- LLM style transfer (formal / casual captions).
+This project includes a `docker-compose.yml` file for easy deployment. It defines services for the FastAPI backend, Celery worker, and Redis.
+
+To deploy using Docker Compose:
+
+1. Ensure Docker and Docker Compose are installed.
+2. Build and start the services:
+   ```bash
+   docker-compose up --build
+   ```
 
 ---
 
-## 8. License
+## License
 
 MIT – do whatever, just keep attribution.
-
----
-
-Happy hacking! 🎬
